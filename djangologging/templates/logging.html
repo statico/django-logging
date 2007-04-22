@@ -1,0 +1,164 @@
+{% load i18n%}
+
+<div id="django_log">
+
+	<hr />
+	<h1>{% trans "Request Log" %}</h1>
+
+	<div class="django_log_messages">
+
+	{% if records %}
+		<table cellspacing="0">
+			<thead>
+				<tr>
+					<th>{% trans "Level" %}</th>
+					<th>{% trans "Timestamp" %}</th>
+					<th>{% trans "Message" %}</th>
+				</tr>
+			</thead>
+			<tbody>
+			{% for record in records %}
+				<tr class="{{ record.levelname|lower|escape }}">
+					<td class="level">{{ record.levelname|escape }}</td>
+					<td class="timestamp">{{ record.formatted_timestamp|escape }}</td>
+					<td class="message">{{ record.getMessage|escape }}</td>
+				</tr>
+			{% endfor %}
+		</table>
+
+	{% else %}
+
+		<p>No log entries.</p>
+
+	{% endif %}
+	</div>
+
+</div>
+
+{% if records %}
+<script type="text/javascript">
+<!--
+
+// Wrap all this Javascript in a function to give a faux-namespace
+var DjangoLogging = function() {
+
+	function addEventListener(element, event, handler) {
+		if (element.addEventListener) {
+			element.addEventListener(event, handler, false);
+		} else {
+			element.attachEvent('on' + event, handler);
+		}
+	}
+
+	function writeCookie(key, value) {
+		document.cookie = key + '=' + escape(value);
+	}
+
+	function readCookie(key, defaultValue) {
+		var s = document.cookie.indexOf(key + '=');
+		if (s == -1) {
+			return defaultValue;
+		} else {
+			s += key.length + 1
+			var e = document.cookie.indexOf(';', s);
+			if (e == -1) e = document.cookie.length;
+			return unescape(document.cookie.substring(s, e));
+		}
+	}
+
+	var levelCookieName = 'django_log_selectedLevel';
+	var classCookieName = 'django_log_className';
+
+	var levels = {{% for level in levels %}
+		'{{ level.1 }}': {{ level.0 }}{% if not forloop.last %},{% endif %}{% endfor %}
+	};
+	var selectedLevel = parseInt(readCookie(levelCookieName, levels.NOTSET));
+
+	var django_log = document.getElementById('django_log');
+	django_log.className = readCookie(classCookieName, 'collapsed');
+
+	var h1 = django_log.getElementsByTagName('h1')[0];
+	var span = document.createElement('span');
+	h1.appendChild(span);
+	if (django_log.className == 'collapsed') {
+		span.appendChild(document.createTextNode('{% trans "Show" %}'))
+	} else {
+		span.appendChild(document.createTextNode('{% trans "Hide" %}'))
+	}
+	addEventListener(span, 'click', function(event) {
+		var target = event.target || event.srcElement;
+		if (django_log.className == 'collapsed') {
+			django_log.className = ' ';
+			target.childNodes[0].nodeValue = '{% trans "Hide" %}';
+		} else {
+			django_log.className = 'collapsed';
+			target.childNodes[0].nodeValue = '{% trans "Show" %}';
+		}
+		writeCookie(classCookieName, django_log.className);
+	});
+
+	var messages = django_log.getElementsByTagName('div')[0];
+	var table = django_log.getElementsByTagName('table')[0];
+	var tbody = table.getElementsByTagName('tbody')[0];
+	var fieldset = document.createElement('fieldset');
+
+	function setLevel(level) {
+		var ps = django_log.getElementsByTagName('p');
+		for (var i = 0; i < ps.length; i++) {
+			ps[i].parentNode.removeChild(ps[i]);
+		}
+		table.style.display = '';
+		var records = tbody.getElementsByTagName('tr');
+		var visibleCount = 0;
+		for (var i = 0; i < records.length; i++) {
+			var recordLevel = records[i].getElementsByTagName('td')[0].childNodes[0].nodeValue.split(' ')[0];
+			if (levels[recordLevel] >= level) {
+				records[i].style.display = '';
+				visibleCount++;
+			} else {
+				records[i].style.display = 'none';
+			}
+		}
+		if (visibleCount == 0) {
+			var p = document.createElement('p');
+			p.appendChild(document.createTextNode('{% trans "No log messages matching filter." %}'));
+			messages.appendChild(p);
+			table.style.display = 'none';
+		}
+		writeCookie(levelCookieName, level);
+	}
+
+	var label = document.createElement('label');
+	label.appendChild(document.createTextNode('{% trans "Filter" %}: '));
+
+	var select = document.createElement('select');
+	label.appendChild(select);
+	fieldset.appendChild(label);
+
+	for (var level in levels) {
+		var option = document.createElement('option');
+		option.setAttribute('value', levels[level]);
+		var text;
+		if (levels[level] == 0) {
+			text = '{% trans "No filter (show all)" %}';
+		} else {
+			text = (levels[level] > 0 ? '\u2265 ' : '') + level;
+		}
+		option.appendChild(document.createTextNode(text));
+		select.appendChild(option);
+	}
+
+	select.value = selectedLevel;
+	setLevel(selectedLevel);
+
+	addEventListener(select, 'change', function() {
+		setLevel(select.value);
+	});
+
+	django_log.insertBefore(fieldset, messages);
+
+}();
+
+//-->
+</script>
+{% endif %}

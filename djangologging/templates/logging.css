@@ -1,0 +1,131 @@
+<style type="text/css">
+<!--
+
+	#django_log {
+		background: #ffc;
+		border: 1px solid #ccc;
+		clear: both;
+		color: #000;
+		font: small sans-serif;
+		padding: 0;
+	}
+
+	#django_log h1 {
+		font-size: 150%;
+		font-weight: normal;
+		float: left;
+		margin: 0;
+		padding: 10px 20px;
+	}
+
+	#django_log h1 span {
+		color: #00c;
+		cursor: pointer;
+		font-size: 60%;
+		margin-left: 1em;
+		text-decoration: underline;
+	}
+
+	#django_log hr {
+		display: none;
+	}
+
+	#django_log p {
+		margin: 0;
+	}
+
+	#django_log fieldset {
+		border: none;
+		float: right;
+		padding: 10px 20px 0 0;
+	}
+
+	#django_log fieldset input {
+		margin-left: 1em;
+		vertical-align: middle;
+	}
+
+	#django_log fieldset select {
+		font-family: sans-serif;
+	}
+
+	#django_log .django_log_messages {
+		background: #eee;
+		border-top: 1px solid #ccc;
+		clear: both;
+		padding: 10px 20px;
+	}
+
+	#django_log table {
+		background: #eee;
+		border: none;
+		border-collapse: separate;
+		clear: both;
+		font-size: 100%;
+	}
+
+	#django_log th {
+		display: none;
+	}
+
+	#django_log td {
+		background: #ddd;
+		border: solid #eee;
+		border-width: 1px 0;
+		padding: .2em 1em;
+		vertical-align: top;
+	}
+
+	#django_log tr:hover td {
+		background: #ccc;
+	}
+
+	#django_log table .level {
+		background: #ccc;
+		text-align: center;
+	}
+
+	#django_log table .message {
+		width: 100%;
+	}
+
+	#django_log tr.critical .level {
+		background: #f00;
+	}
+
+	#django_log tr.error .level {
+		background: #f93;
+	}
+
+	#django_log tr.warning .level {
+		background: #ff0;
+	}
+
+	#django_log tr.info .level {
+		background: #9f9;
+	}
+
+	#django_log table .timestamp {
+		font-style: italic;
+		text-align: center;
+		width: 8em;
+	}
+
+	#django_log.collapsed table {
+		display: none;
+	}
+
+	#django_log.collapsed div {
+		display: none;
+	}
+
+	#django_log.collapsed h1 {
+		float: none;
+	}
+
+	#django_log.collapsed fieldset {
+		display: none;
+	}
+
+-->
+</style>
