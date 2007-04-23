@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import re
@@ -21,8 +22,6 @@ close_body_re = re.compile("(</body>)", re.M | re.I)
 
 # Initialise and register the handler
 handler = ThreadBufferedHandler()
-handler.setLevel(logging.NOTSET)
-handler.setFormatter(logging.Formatter())
 logging.root.setLevel(logging.NOTSET)
 logging.root.addHandler(handler)
 
@@ -40,6 +39,11 @@ _redirect_statuses = {
     302: 'Found',
     303: 'See Other',
     307: 'Temporary Redirect'}
+
+
+def format_time(record):
+    time = datetime.datetime.fromtimestamp(record.created)
+    return '%s,%03d' % (time.strftime('%H:%M:%S'), record.msecs)
 
 class LoggingMiddleware(object):
     """
@@ -67,11 +71,8 @@ class LoggingMiddleware(object):
     def _get_and_clear_records(self):
             records = handler.get_records()
             handler.clear_records()
-            def formatted_time(record):
-                time = handler.formatter.formatTime(record, '%H:%M:%S')
-                return '%s,%03d' % (time, record.msecs)
             for record in records:
-                record.formatted_timestamp = formatted_time(record)
+                record.formatted_timestamp = format_time(record)
             return records
 
     def _rewrite_html(self, response):
