@@ -1,9 +1,12 @@
 import logging
 import os
 import re
+import urlparse
 
 from django.conf import settings
+from django.shortcuts import render_to_response
 from django.template import loader
+from django.utils.cache import add_never_cache_headers
 
 from djangologging import getLevelNames
 from djangologging.handlers import ThreadBufferedHandler
@@ -23,6 +26,20 @@ handler.setFormatter(logging.Formatter())
 logging.root.setLevel(logging.NOTSET)
 logging.root.addHandler(handler)
 
+# Because this logging module isn't registered within INSTALLED_APPS, we have
+# to work out an absolute file path to the templates.
+template_path = os.path.join(os.path.dirname(__file__), 'templates')
+
+try:
+    intercept_redirects = settings.LOGGING_INTERCEPT_REDIRECTS
+except AttributeError:
+    intercept_redirects = False
+
+_redirect_statuses = {
+    301: 'Moved Permanently',
+    302: 'Found',
+    303: 'See Other',
+    307: 'Temporary Redirect'}
 
 class LoggingMiddleware(object):
     """
@@ -34,9 +51,17 @@ class LoggingMiddleware(object):
         handler.clear_records()
 
     def process_response(self, request, response):
+
         if settings.DEBUG and request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS:
+
+            if intercept_redirects and \
+                    response.status_code in _redirect_statuses and \
+                    len(handler.get_records()):
+                response = self._handle_redirect(request, response)
+
             if response['Content-Type'].startswith('text/html'):
                 self._rewrite_html(response)
+
         return response
 
     def _get_and_clear_records(self):
@@ -51,10 +76,6 @@ class LoggingMiddleware(object):
 
     def _rewrite_html(self, response):
         records = self._get_and_clear_records()
-
-        # Because this logging module isn't registered within INSTALLED_APPS,
-        # we have to work out an absolute file path to the templates.
-        template_path = os.path.join(os.path.dirname(__file__), 'templates')
 
         css_template = os.path.join(template_path, 'logging.css')
         header = loader.render_to_string(css_template)
@@ -71,3 +92,16 @@ class LoggingMiddleware(object):
             # be sensible HTML, so just append the log to the end of the
             # response and hope for the best!
             response.write(footer)
+
+    def _handle_redirect(self, request, response):
+        request_protocol = request.is_secure() and 'https' or 'http'
+        request_url = '%s://%s' % (request_protocol, request.META.get('HTTP_HOST'))
+        location = urlparse.urljoin(request_url, response['Location'])
+        redirect_template = os.path.join(template_path, 'redirect.html')
+        data = {
+            'location': location,
+            'status_code': response.status_code,
+            'status_name': _redirect_statuses[response.status_code]}
+        response = render_to_response(redirect_template, data)
+        add_never_cache_headers(response)
+        return response
