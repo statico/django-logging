@@ -23,8 +23,8 @@ class ThreadBufferedHandler(Handler):
 
     def get_records(self, thread=None):
         """
-        Gets the log messages of a the specified thread, or the current thread
-        if no thread is specified.
+        Gets the log messages of the specified thread, or the current thread if
+        no thread is specified.
         """
         if not thread:
             thread = threading.currentThread()
@@ -34,8 +34,8 @@ class ThreadBufferedHandler(Handler):
 
     def clear_records(self, thread=None):
         """
-        Clears the log messages of a the specified thread, or the current
-        thread if no thread is specified.
+        Clears the log messages of the specified thread, or the current thread
+        if no thread is specified.
         """
         if not thread:
             thread = threading.currentThread()
