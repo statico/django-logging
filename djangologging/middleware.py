@@ -34,6 +34,11 @@ try:
 except AttributeError:
     intercept_redirects = False
 
+try:
+    logging_output_enabled = settings.LOGGING_OUTPUT_ENABLED
+except AttributeError:
+    logging_output_enabled = settings.DEBUG
+
 _redirect_statuses = {
     301: 'Moved Permanently',
     302: 'Found',
@@ -56,7 +61,7 @@ class LoggingMiddleware(object):
 
     def process_response(self, request, response):
 
-        if settings.DEBUG and request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS:
+        if logging_output_enabled and request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS:
 
             if intercept_redirects and \
                     response.status_code in _redirect_statuses and \
