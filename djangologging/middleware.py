@@ -70,6 +70,7 @@ class LoggingMiddleware(object):
 
             if response['Content-Type'].startswith('text/html'):
                 self._rewrite_html(response)
+                add_never_cache_headers(response)
 
         return response
 
