@@ -8,6 +8,13 @@ from django.conf import settings
 from django.shortcuts import render_to_response
 from django.template import loader
 from django.utils.cache import add_never_cache_headers
+try:
+    from django.utils.encoding import smart_str
+except ImportError:
+    # Older versions of Django don't have smart_str, but because they don't
+    # require Unicode, we can simply fake it with an identify function.
+    smart_str = lambda s: s
+
 
 from djangologging import getLevelNames
 from djangologging.handlers import ThreadBufferedHandler
@@ -85,11 +92,11 @@ class LoggingMiddleware(object):
         records = self._get_and_clear_records()
 
         css_template = os.path.join(template_path, 'logging.css')
-        header = loader.render_to_string(css_template)
+        header = smart_str(loader.render_to_string(css_template))
 
         html_template = os.path.join(template_path, 'logging.html')
         levels = getLevelNames()
-        footer = loader.render_to_string(html_template, {'records': records, 'levels': levels})
+        footer = smart_str(loader.render_to_string(html_template, {'records': records, 'levels': levels}))
 
         if close_head_re.search(response.content) and close_body_re.search(response.content):
             response.content = close_head_re.sub(r'%s\1' % header, response.content)
