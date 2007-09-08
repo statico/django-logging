@@ -33,8 +33,13 @@ logging.root.setLevel(logging.NOTSET)
 logging.root.addHandler(handler)
 
 # Because this logging module isn't registered within INSTALLED_APPS, we have
-# to work out an absolute file path to the templates.
-template_path = os.path.join(os.path.dirname(__file__), 'templates')
+# to use (or work out) an absolute file path to the templates and add it to 
+# TEMPLATE_DIRS.
+try:
+    template_path = settings.LOGGING_TEMPLATE_DIR
+except AttributeError:
+    template_path = os.path.join(os.path.dirname(__file__), 'templates')
+settings.TEMPLATE_DIRS = (template_path,) + tuple(settings.TEMPLATE_DIRS)
 
 try:
     intercept_redirects = settings.LOGGING_INTERCEPT_REDIRECTS
@@ -90,13 +95,10 @@ class LoggingMiddleware(object):
 
     def _rewrite_html(self, response):
         records = self._get_and_clear_records()
-
-        css_template = os.path.join(template_path, 'logging.css')
-        header = smart_str(loader.render_to_string(css_template))
-
-        html_template = os.path.join(template_path, 'logging.html')
         levels = getLevelNames()
-        footer = smart_str(loader.render_to_string(html_template, {'records': records, 'levels': levels}))
+
+        header = smart_str(loader.render_to_string('logging.css'))
+        footer = smart_str(loader.render_to_string('logging.html', {'records': records, 'levels': levels}))
 
         if close_head_re.search(response.content) and close_body_re.search(response.content):
             response.content = close_head_re.sub(r'%s\1' % header, response.content)
@@ -111,11 +113,10 @@ class LoggingMiddleware(object):
         request_protocol = request.is_secure() and 'https' or 'http'
         request_url = '%s://%s' % (request_protocol, request.META.get('HTTP_HOST'))
         location = urlparse.urljoin(request_url, response['Location'])
-        redirect_template = os.path.join(template_path, 'redirect.html')
         data = {
             'location': location,
             'status_code': response.status_code,
             'status_name': _redirect_statuses[response.status_code]}
-        response = render_to_response(redirect_template, data)
+        response = render_to_response('redirect.html', data)
         add_never_cache_headers(response)
         return response
