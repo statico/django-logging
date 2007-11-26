@@ -164,9 +164,14 @@ class LoggingMiddleware(object):
             response.write(footer)
 
     def _handle_redirect(self, request, response):
-        request_protocol = request.is_secure() and 'https' or 'http'
-        request_url = '%s://%s' % (request_protocol, request.META.get('HTTP_HOST'))
-        location = urlparse.urljoin(request_url, response['Location'])
+        if hasattr(request, 'build_absolute_url'):
+            location = request.build_absolute_uri(response['Location'])
+        else:
+            # Construct the URL manually in older versions of Django
+            request_protocol = request.is_secure() and 'https' or 'http'
+            request_url = '%s://%s%s' % (request_protocol,
+                request.META.get('HTTP_HOST'), request.path)
+            location = urlparse.urljoin(request_url, response['Location'])
         data = {
             'location': location,
             'status_code': response.status_code,
