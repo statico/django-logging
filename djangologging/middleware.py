@@ -137,6 +137,8 @@ class LoggingMiddleware(object):
             return records
 
     def _rewrite_html(self, request, response):
+        if not hasattr(request, 'logging_start_time'):
+            return
         context = {
             'records': self._get_and_clear_records(),
             'levels': getLevelNames(),
