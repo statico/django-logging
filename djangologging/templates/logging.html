@@ -1,4 +1,4 @@
-{% load i18n%}
+{% load i18n %}
 
 <div id="django_log">
 
@@ -13,7 +13,9 @@
 				<tr>
 					<th>{% trans "Level" %}</th>
 					<th>{% trans "Timestamp" %}</th>
+					<th>{% trans "Location" %}</th>
 					<th>{% trans "Message" %}</th>
+					<th>{% trans "Time" %}</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -21,11 +23,27 @@
 				<tr class="{{ record.levelname|lower|escape }}">
 					<td class="level">{{ record.levelname|escape }}</td>
 					<td class="timestamp">{{ record.formatted_timestamp|escape }}</td>
-					<td class="message">{{ record.getMessage|escape }}</td>
+					<td class="location"><abbr title="{{ record.pathname|escape|addslashes }} : {{ record.funcName|escape }} : {{ record.lineno|escape }}">{{ record.module|escape }}.{{ record.funcName|escape }}:{{ record.lineno|escape }}</abbr></td>
+					{% if record.sqltime %}
+						<td class="message">{{ record.getMessage|escape }}</td>
+						<td class="time">{{ record.sqltime }} <abbr title="milliseconds">ms</abbr></td>
+					{% else %}
+						<td class="message">{{ record.getMessage|escape }}</td>
+						<td class="time">&nbsp;</td>
+					{% endif %}
 				</tr>
 			{% endfor %}
 			</tbody>
 		</table>
+
+		{% if logging_show_metrics %}		
+			<div class="metrics">
+				Completed in {{ elapsed_time|floatformat }} <abbr title="milliseconds">ms</abbr>{% ifnotequal query_count -1 %}
+				with {{ query_count }} database quer{{ query_count|pluralize:"y,ies" }}{% if query_count %}
+				which took {{ query_time|floatformat }} <abbr title="milliseconds">ms</abbr>
+				({{ query_percentage|floatformat }}% of total time){% endif %}{% if not logging_log_sql %}. If you set <code>LOGGING_LOG_SQL</code> to <code>True</code> in your Django settings file, you'll see all the individual database queries{% endif %}{% endifnotequal %}.
+			</div>
+		{% endif %}
 
 	{% else %}
 
@@ -50,6 +68,18 @@ var DjangoLogging = function() {
 			element.attachEvent('on' + event, handler);
 		}
 	}
+	
+	function createCheckbox(checked) {
+		var input;
+		if (navigator.userAgent.indexOf('MSIE') != -1) {
+			input = document.createElement('<input type="checkbox"' + (checked ? ' checked="checked"' : '') + ' />');
+		} else {
+			input = document.createElement('input');
+			input.setAttribute('type', 'checkbox');
+			input.checked = checked;
+		}
+		return input;
+	}
 
 	function writeCookie(key, value) {
 		document.cookie = key + '=' + escape(value);
@@ -69,11 +99,14 @@ var DjangoLogging = function() {
 
 	var levelCookieName = 'django_log_selectedLevel';
 	var classCookieName = 'django_log_className';
+	var locationCookieName = 'django_log_showLocation';
 
 	var levels = {{% for level in levels %}
 		'{{ level.1 }}': {{ level.0 }}{% if not forloop.last %},{% endif %}{% endfor %}
 	};
 	var selectedLevel = parseInt(readCookie(levelCookieName, levels.NOTSET));
+	
+	var showLocation = (readCookie(locationCookieName, '1') == '1');
 
 	var django_log = document.getElementById('django_log');
 	django_log.className = readCookie(classCookieName, 'collapsed');
@@ -103,6 +136,15 @@ var DjangoLogging = function() {
 	var tbody = table.getElementsByTagName('tbody')[0];
 	var fieldset = document.createElement('fieldset');
 
+	function showHideLocation(show) {
+		table.getElementsByTagName('th')[2].style.display = (show ? '' : 'none');
+		var records = tbody.getElementsByTagName('tr');
+		for (var i = 0; i < records.length; i++) {
+			records[i].getElementsByTagName('td')[2].style.display = (show ? '' : 'none');
+		}
+		writeCookie(locationCookieName, show ? '1' : '0');
+	}
+
 	function setLevel(level) {
 		var ps = django_log.getElementsByTagName('p');
 		for (var i = 0; i < ps.length; i++) {
@@ -123,14 +165,25 @@ var DjangoLogging = function() {
 		if (visibleCount == 0) {
 			var p = document.createElement('p');
 			p.appendChild(document.createTextNode('{% trans "No log messages matching filter." %}'));
-			messages.appendChild(p);
+			messages.insertBefore(p, table.nextSibling);
 			table.style.display = 'none';
 		}
 		writeCookie(levelCookieName, level);
 	}
-
+	
 	var label = document.createElement('label');
+	var input = createCheckbox(showLocation);
+	label.className = 'first';
+	label.appendChild(input);
+	label.appendChild(document.createTextNode(' {% trans "Show location" %}'));
+	fieldset.appendChild(label);
+	label = document.createElement('label');
 	label.appendChild(document.createTextNode('{% trans "Filter" %}: '));
+
+	showHideLocation(showLocation);
+	addEventListener(input, 'click', function() {
+		showHideLocation(input.checked);
+	});
 
 	var select = document.createElement('select');
 	label.appendChild(select);
@@ -157,6 +210,12 @@ var DjangoLogging = function() {
 	});
 
 	django_log.insertBefore(fieldset, messages);
+
+	var records = tbody.getElementsByTagName('tr');
+	for (var i = 0; i < records.length; i++) {
+		var html = records[i].getElementsByTagName('td')[3].innerHTML;
+		records[i].getElementsByTagName('td')[3].innerHTML = html.replace(/(&[^;]+;|\\b)/g, '\u200B$1');
+	}
 
 }();
 

@@ -1,10 +1,15 @@
 import datetime
+import inspect
 import logging
 import os
 import re
+import sys
+import time
 import urlparse
 
+import django
 from django.conf import settings
+from django.db import connection
 from django.shortcuts import render_to_response
 from django.template import loader
 from django.utils.cache import add_never_cache_headers
@@ -14,7 +19,6 @@ except ImportError:
     # Older versions of Django don't have smart_str, but because they don't
     # require Unicode, we can simply fake it with an identify function.
     smart_str = lambda s: s
-
 
 from djangologging import getLevelNames
 from djangologging.handlers import ThreadBufferedHandler
@@ -51,11 +55,47 @@ try:
 except AttributeError:
     logging_output_enabled = settings.DEBUG
 
+try:
+    logging_show_metrics = settings.LOGGING_SHOW_METRICS
+except AttributeError:
+    logging_show_metrics = True
+
+try:
+    logging_log_sql = settings.LOGGING_LOG_SQL
+except AttributeError:
+    logging_log_sql = False
+
+if logging_log_sql:
+    # Define a new logging level called SQL
+    logging.SQL = logging.DEBUG + 1
+    logging.addLevelName(logging.SQL, 'SQL')
+    class SqlLoggingList(list):
+        def append(self, object):
+            # We change logging.currentframe so that the location from which
+            # the SQL was called gets logged, rather than this method.
+            frame = inspect.currentframe()
+            
+			# Try to find the meaningful frame, rather than using one from the Django DB code
+            while frame.f_back and frame.f_back.f_code.co_filename.startswith(_django_path):
+                if frame.f_back.f_code.co_filename.startswith(_admin_path):
+                    break
+                frame = frame.f_back
+            
+            original_currentframe = logging.currentframe
+            logging.currentframe = lambda: frame
+            logging.log(logging.SQL, object['sql'], extra={'sqltime': "%d" % (float(object['time']) * 1000)})
+            logging.currentframe = original_currentframe
+            list.append(self, object)
+
+
 _redirect_statuses = {
     301: 'Moved Permanently',
     302: 'Found',
     303: 'See Other',
     307: 'Temporary Redirect'}
+
+_django_path = django.__file__.split('__init__')[0]
+_admin_path = django.contrib.admin.__file__.split('__init__')[0]
 
 
 def format_time(record):
@@ -70,6 +110,9 @@ class LoggingMiddleware(object):
 
     def process_request(self, request):
         handler.clear_records()
+        if logging_log_sql:
+            connection.queries = SqlLoggingList(connection.queries)
+        request.logging_start_time = time.time()
 
     def process_response(self, request, response):
 
@@ -81,7 +124,7 @@ class LoggingMiddleware(object):
                 response = self._handle_redirect(request, response)
 
             if response['Content-Type'].startswith('text/html'):
-                self._rewrite_html(response)
+                self._rewrite_html(request, response)
                 add_never_cache_headers(response)
 
         return response
@@ -93,12 +136,23 @@ class LoggingMiddleware(object):
                 record.formatted_timestamp = format_time(record)
             return records
 
-    def _rewrite_html(self, response):
-        records = self._get_and_clear_records()
-        levels = getLevelNames()
+    def _rewrite_html(self, request, response):
+        context = {
+            'records': self._get_and_clear_records(),
+            'levels': getLevelNames(),
+            'elapsed_time': (time.time() - request.logging_start_time) * 1000, # milliseconds
+            'query_count': -1,
+            'logging_log_sql': logging_log_sql,
+            'logging_show_metrics': logging_show_metrics,
+            }
+        if settings.DEBUG and logging_show_metrics:
+            context['query_count'] = len(connection.queries)
+            if context['query_count'] and context['elapsed_time']:
+                context['query_time'] = sum(map(lambda q: float(q['time']) * 1000, connection.queries))
+                context['query_percentage'] = context['query_time'] / context['elapsed_time'] * 100
 
         header = smart_str(loader.render_to_string('logging.css'))
-        footer = smart_str(loader.render_to_string('logging.html', {'records': records, 'levels': levels}))
+        footer = smart_str(loader.render_to_string('logging.html', context))
 
         if close_head_re.search(response.content) and close_body_re.search(response.content):
             response.content = close_head_re.sub(r'%s\1' % header, response.content)

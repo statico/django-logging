@@ -35,10 +35,24 @@
 		margin: 0;
 	}
 
+	#django_log .metrics {
+		margin-top: 10px;
+	}
+
 	#django_log fieldset {
 		border: none;
 		float: right;
-		padding: 10px 20px 0 0;
+		padding: 10px 20px;
+	}
+
+	#django_log fieldset label {
+		margin-left: 1em;
+		border-left: 1px solid #ccc;
+		padding-left: 1em;
+	}
+
+	#django_log fieldset label.first {
+		border: none;
 	}
 
 	#django_log fieldset input {
@@ -90,6 +104,11 @@
 		width: 100%;
 	}
 
+	#django_log table .time {
+		text-align: right;
+		white-space: nowrap;
+	}
+
 	#django_log tr.critical .level {
 		background: #f00;
 	}
@@ -104,6 +123,10 @@
 
 	#django_log tr.info .level {
 		background: #9f9;
+	}
+
+	#django_log tr.sql .level {
+		background: #99f;
 	}
 
 	#django_log table .timestamp {
