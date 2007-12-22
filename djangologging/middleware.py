@@ -9,6 +9,7 @@ import urlparse
 
 import django
 from django.conf import settings
+from django.contrib import admin
 from django.db import connection
 from django.shortcuts import render_to_response
 from django.template import loader
@@ -95,7 +96,7 @@ _redirect_statuses = {
     307: 'Temporary Redirect'}
 
 _django_path = django.__file__.split('__init__')[0]
-_admin_path = django.contrib.admin.__file__.split('__init__')[0]
+_admin_path = admin.__file__.split('__init__')[0]
 
 
 def format_time(record):
