@@ -94,7 +94,7 @@ if logging_log_sql:
     
     class SqlLoggingList(list):
         def append(self, object):
-			# Try to find the meaningful frame, rather than just using one from
+            # Try to find the meaningful frame, rather than just using one from
             # the innards of the Django DB code.
             frame = inspect.currentframe().f_back
             while frame.f_back and frame.f_code.co_filename.startswith(_django_path):
