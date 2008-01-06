@@ -20,6 +20,7 @@ except ImportError:
     # Older versions of Django don't have smart_str, but because they don't
     # require Unicode, we can simply fake it with an identify function.
     smart_str = lambda s: s
+from django.utils.functional import curry
 
 from djangologging import getLevelNames
 from djangologging.handlers import ThreadBufferedHandler
@@ -70,22 +71,44 @@ if logging_log_sql:
     # Define a new logging level called SQL
     logging.SQL = logging.DEBUG + 1
     logging.addLevelName(logging.SQL, 'SQL')
+    
+    # Define a custom function for creating log records
+    def make_sql_record(frame, original_makeRecord, sqltime, self, *args, **kwargs):
+        args = list(args)
+        len_args = len(args)
+        if len_args > 2:
+            args[2] = frame.f_code.co_filename
+        else:
+            kwargs['fn'] = frame.f_code.co_filename
+        if len_args > 3:
+            args[3] = frame.f_lineno
+        else:
+            kwargs['lno'] = frame.f_lineno
+        if len_args > 7:
+            args[7] = frame.f_code.co_name
+        elif 'func' in kwargs:
+            kwargs['func'] = frame.f_code.co_name
+        rv = original_makeRecord(self, *args, **kwargs)
+        rv.__dict__['sqltime'] = '%d' % sqltime
+        return rv
+    
     class SqlLoggingList(list):
         def append(self, object):
-            # We change logging.currentframe so that the location from which
-            # the SQL was called gets logged, rather than this method.
-            frame = inspect.currentframe()
-            
-			# Try to find the meaningful frame, rather than using one from the Django DB code
-            while frame.f_back and frame.f_back.f_code.co_filename.startswith(_django_path):
-                if frame.f_back.f_code.co_filename.startswith(_admin_path):
+			# Try to find the meaningful frame, rather than just using one from
+            # the innards of the Django DB code.
+            frame = inspect.currentframe().f_back
+            while frame.f_back and frame.f_code.co_filename.startswith(_django_path):
+                if frame.f_code.co_filename.startswith(_admin_path):
                     break
                 frame = frame.f_back
-            
-            original_currentframe = logging.currentframe
-            logging.currentframe = lambda: frame
-            logging.log(logging.SQL, object['sql'], extra={'sqltime': "%d" % (float(object['time']) * 1000)})
-            logging.currentframe = original_currentframe
+
+            sqltime = float(object['time']) * 1000
+
+            # Temporarily use make_sql_record for creating log records
+            original_makeRecord = logging.Logger.makeRecord
+            logging.Logger.makeRecord = curry(make_sql_record, frame, original_makeRecord, sqltime)
+            logging.log(logging.SQL, object['sql'])
+            logging.Logger.makeRecord = original_makeRecord
             list.append(self, object)
 
 

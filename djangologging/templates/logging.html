@@ -23,7 +23,7 @@
 				<tr class="{{ record.levelname|lower|escape }}">
 					<td class="level">{{ record.levelname|escape }}</td>
 					<td class="timestamp">{{ record.formatted_timestamp|escape }}</td>
-					<td class="location"><abbr title="{{ record.pathname|escape|addslashes }} : {{ record.funcName|escape }} : {{ record.lineno|escape }}">{{ record.module|escape }}.{{ record.funcName|escape }}:{{ record.lineno|escape }}</abbr></td>
+					<td class="location"><abbr title="{{ record.pathname|escape|addslashes }} {% if record.funcName %}: {{ record.funcName|escape }} {% endif %}: {{ record.lineno|escape }}">{{ record.module|escape }}{% if record.funcName %}.{{ record.funcName|escape }}{% endif %}:{{ record.lineno|escape }}</abbr></td>
 					{% if record.sqltime %}
 						<td class="message">{{ record.getMessage|escape }}</td>
 						<td class="time">{{ record.sqltime }} <abbr title="milliseconds">ms</abbr></td>
