@@ -1,5 +1,6 @@
 from logging import *
 
+SUPPRESS_OUTPUT_ATTR = 'djangologging.suppress_output'
 
 def getLevelNames():
     """

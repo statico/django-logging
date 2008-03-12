@@ -22,7 +22,7 @@ except ImportError:
     smart_str = lambda s: s
 from django.utils.functional import curry
 
-from djangologging import getLevelNames
+from djangologging import SUPPRESS_OUTPUT_ATTR, getLevelNames
 from djangologging.handlers import ThreadBufferedHandler
 
 
@@ -140,7 +140,9 @@ class LoggingMiddleware(object):
 
     def process_response(self, request, response):
 
-        if logging_output_enabled and request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS:
+        if logging_output_enabled and \
+                request.META.get('REMOTE_ADDR') in settings.INTERNAL_IPS and \
+                not getattr(response, SUPPRESS_OUTPUT_ATTR, False):
 
             if intercept_redirects and \
                     response.status_code in _redirect_statuses and \
