@@ -107,7 +107,7 @@ if logging_log_sql:
             # Temporarily use make_sql_record for creating log records
             original_makeRecord = logging.Logger.makeRecord
             logging.Logger.makeRecord = curry(make_sql_record, frame, original_makeRecord, sqltime)
-            logging.log(logging.SQL, object['sql'])
+            logging.getLogger().log(logging.SQL, object['sql'])
             logging.Logger.makeRecord = original_makeRecord
             list.append(self, object)
 
