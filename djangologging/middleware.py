@@ -128,7 +128,7 @@ def format_time(record):
 
 class LoggingMiddleware(object):
     """
-    Middleware that uses the appends messages logged during the request to the
+    Middleware that appends the messages logged during the request to the
     response (if the response is HTML).
     """
 

@@ -13,7 +13,8 @@ class ThreadBufferedHandler(Handler):
     
     def __init__(self):
         if not threading_supported:
-            raise NotImplementedError("ThreadBufferedHandler cannot be used if threading is not supported.")
+            raise NotImplementedError("ThreadBufferedHandler cannot be used "
+                "if threading is not supported.")
         Handler.__init__(self)
         self.records = {} # Dictionary (Thread -> list of records)
 
