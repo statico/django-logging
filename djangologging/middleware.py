@@ -183,8 +183,12 @@ class LoggingMiddleware(object):
         footer = smart_str(loader.render_to_string('logging.html', context))
 
         if close_head_re.search(response.content) and close_body_re.search(response.content):
-            response.content = close_head_re.sub(r'%s\1' % header, response.content)
-            response.content = close_body_re.sub(r'%s\1' % footer, response.content)
+            def safe_prepend(prependant):
+                def _prepend(match):
+                    return '%s%s' % (prependant, match.group(0)) 
+                return _prepend
+            response.content = close_head_re.sub(safe_prepend(header), response.content)
+            response.content = close_body_re.sub(safe_prepend(footer), response.content)
         else:
             # Despite a Content-Type of text/html, the content doesn't seem to
             # be sensible HTML, so just append the log to the end of the
