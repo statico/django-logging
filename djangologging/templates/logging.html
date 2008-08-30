@@ -1,6 +1,8 @@
 {% load i18n %}
 
-<div id="django_log">
+{% get_current_language as LANGUAGE_CODE %}
+
+<div id="django_log" lang="{{ LANGUAGE_CODE|escape }}">
 
 	<hr />
 	<h1>{% trans "Request Log" %}</h1>
@@ -38,16 +40,18 @@
 
 		{% if logging_show_metrics %}		
 			<div class="metrics">
-				Completed in {{ elapsed_time|floatformat }} <abbr title="milliseconds">ms</abbr>{% ifnotequal query_count -1 %}
-				with {{ query_count }} database quer{{ query_count|pluralize:"y,ies" }}{% if query_count %}
-				which took {{ query_time|floatformat }} <abbr title="milliseconds">ms</abbr>
-				({{ query_percentage|floatformat }}% of total time){% endif %}{% if not logging_log_sql %}. If you set <code>LOGGING_LOG_SQL</code> to <code>True</code> in your Django settings file, you'll see all the individual database queries{% endif %}{% endifnotequal %}.
+				{% blocktrans with elapsed_time|floatformat as elapsed_time %}Completed in {{ elapsed_time }} <abbr title="milliseconds">ms</abbr>{% endblocktrans %}
+				{% ifnotequal query_count -1 %}
+					{% blocktrans count query_count as query_count %}with {{ query_count }} database query{% plural %}with {{ query_count }} database queries{% endblocktrans %}
+					{% if query_count %}
+						{% blocktrans with query_time|floatformat as query_time and query_percentage|floatformat as query_percentage %}which took {{ query_time }} <abbr title="milliseconds">ms</abbr> ({{ query_percentage }}% of total time){% endblocktrans %}{% endif %}{% if not logging_log_sql %}.
+					{% blocktrans %}If you set <code>LOGGING_LOG_SQL</code> to <code>True</code> in your Django settings file, you'll see all the individual database queries{% endblocktrans %}{% endif %}{% endifnotequal %}.
 			</div>
 		{% endif %}
 
 	{% else %}
 
-		<p>No log entries.</p>
+		<p>{% trans "No log entries." %}</p>
 
 	{% endif %}
 	</div>
