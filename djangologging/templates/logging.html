@@ -44,7 +44,7 @@
 				{% ifnotequal query_count -1 %}
 					{% blocktrans count query_count as query_count %}with {{ query_count }} database query{% plural %}with {{ query_count }} database queries{% endblocktrans %}
 					{% if query_count %}
-						{% blocktrans with query_time|floatformat as query_time and query_percentage|floatformat as query_percentage %}which took {{ query_time }} <abbr title="milliseconds">ms</abbr> ({{ query_percentage }}% of total time){% endblocktrans %}{% endif %}{% if not logging_log_sql %}.
+						{% blocktrans with query_time|floatformat as query_time and query_percentage|floatformat as query_percentage %}which took {{ query_time }} <abbr title="milliseconds">ms</abbr> ({{ query_percentage }}&#37; of total time){% endblocktrans %}{% endif %}{% if not logging_log_sql %}.
 					{% blocktrans %}If you set <code>LOGGING_LOG_SQL</code> to <code>True</code> in your Django settings file, you'll see all the individual database queries{% endblocktrans %}{% endif %}{% endifnotequal %}.
 			</div>
 		{% endif %}
