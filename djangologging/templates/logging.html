@@ -23,16 +23,31 @@
 			<tbody>
 			{% for record in records %}
 				<tr class="{{ record.levelname|lower|escape }}">
-					<td class="level">{{ record.levelname|escape }}</td>
-					<td class="timestamp">{{ record.formatted_timestamp|escape }}</td>
-					<td class="location"><abbr title="{{ record.pathname|escape|addslashes }} {% if record.funcName %}: {{ record.funcName|escape }} {% endif %}: {{ record.lineno|escape }}">{{ record.module|escape }}{% if record.funcName %}.{{ record.funcName|escape }}{% endif %}:{{ record.lineno|escape }}</abbr></td>
+					<td class="level" rowspan="2">{{ record.levelname|escape }}</td>
+					<td class="timestamp" rowspan="2">{{ record.formatted_timestamp|escape }}</td>
+					<td class="location"><a href="#">&#x25b6;&nbsp;{{ record.module|escape }}{% if record.funcName %}.{{ record.funcName|escape }}{% endif %}:{{ record.lineno|escape }}</a></td>
 					{% if record.sqltime %}
-						<td class="message">{{ record.getMessage|escape }}</td>
+						<td class="message">{{ record.formatted_message }}</td>
 						<td class="time">{{ record.sqltime }} <abbr title="milliseconds">ms</abbr></td>
 					{% else %}
-						<td class="message">{{ record.getMessage|escape }}</td>
+						<td class="message">{{ record.formatted_message }}</td>
 						<td class="time">&nbsp;</td>
 					{% endif %}
+				</tr>
+				<tr class="{{ record.levelname|lower|escape }}">
+					<td class="trace trace-hidden" colspan="3">
+						<div class="source">
+							<h3>{{ record.pathname|escape|addslashes }} {% if record.funcName %}: {{ record.funcName|escape }} {% endif %}: {{ record.lineno|escape }}</h3>
+							{{ record.source_lines|escape }}
+							<h3>Local variables</h3>
+							<dl class="local_variables">
+								{% for var in record.local_variables %}
+									<dt>{{ var.0|escape }}</dt>
+									<dd>{{ var.1|pprint|escape }}</dd>
+								{% endfor %}
+							</dl>
+						</div>
+					</td>
 				</tr>
 			{% endfor %}
 			</tbody>
@@ -44,8 +59,18 @@
 				{% ifnotequal query_count -1 %}
 					{% blocktrans count query_count as query_count %}with {{ query_count }} database query{% plural %}with {{ query_count }} database queries{% endblocktrans %}
 					{% if query_count %}
-						{% blocktrans with query_time|floatformat as query_time and query_percentage|floatformat as query_percentage %}which took {{ query_time }} <abbr title="milliseconds">ms</abbr> ({{ query_percentage }}&#37; of total time){% endblocktrans %}{% endif %}{% if not logging_log_sql %}.
+						{% blocktrans with query_time|floatformat as query_time and query_percentage|floatformat as query_percentage %}which took {{ query_time }} <abbr title="milliseconds">ms</abbr> ({{ query_percentage }}% of total time){% endblocktrans %}{% endif %}{% if not logging_log_sql %}.
 					{% blocktrans %}If you set <code>LOGGING_LOG_SQL</code> to <code>True</code> in your Django settings file, you'll see all the individual database queries{% endblocktrans %}{% endif %}{% endifnotequal %}.
+			</div>
+		{% endif %}
+		{% if logging_show_hints and hints %}
+			<div class="hints">
+				<h3><strong>{% blocktrans %}Did you know?{% endblocktrans %}</strong></h3>
+				<ul>
+					{% if hints.pygments %}
+						<li>{% blocktrans %}To have your SQL pretty printed, simply install <a href="http://pygments.org/">pygments</a>.{% endblocktrans %}</li>
+					{% endif %}
+				</ul>
 			</div>
 		{% endif %}
 
@@ -144,7 +169,11 @@ var DjangoLogging = function() {
 		table.getElementsByTagName('th')[2].style.display = (show ? '' : 'none');
 		var records = tbody.getElementsByTagName('tr');
 		for (var i = 0; i < records.length; i++) {
-			records[i].getElementsByTagName('td')[2].style.display = (show ? '' : 'none');
+			if (i % 2 == 0) {
+				records[i].getElementsByTagName('td')[2].style.display = (show ? '' : 'none');
+			} else {
+				records[i].getElementsByTagName('td')[0].style.display = (show ? '' : 'none');
+			}
 		}
 		writeCookie(locationCookieName, show ? '1' : '0');
 	}
@@ -157,7 +186,7 @@ var DjangoLogging = function() {
 		table.style.display = '';
 		var records = tbody.getElementsByTagName('tr');
 		var visibleCount = 0;
-		for (var i = 0; i < records.length; i++) {
+		for (var i = 0; i < records.length; i+=2) {
 			var recordLevel = records[i].getElementsByTagName('td')[0].childNodes[0].nodeValue.split(' ')[0];
 			if (levels[recordLevel] >= level) {
 				records[i].style.display = '';
@@ -216,9 +245,25 @@ var DjangoLogging = function() {
 	django_log.insertBefore(fieldset, messages);
 
 	var records = tbody.getElementsByTagName('tr');
-	for (var i = 0; i < records.length; i++) {
+	for (var i = 0; i < records.length; i+=2) {
 		var html = records[i].getElementsByTagName('td')[3].innerHTML;
 		records[i].getElementsByTagName('td')[3].innerHTML = html.replace(/(&[^;]+;|\\b)/g, '\u200B$1');
+		addEventListener(records[i].getElementsByTagName('a')[0], 'click', function(e) {
+			var link = e.srcElement || e.target;
+			var next = link.parentNode.parentNode.nextSibling;
+			if (next.nodeName != 'TR') next = next.nextSibling;
+			var td = next.getElementsByTagName('td')[0];
+			if (this.className == 'open') {
+				this.className = '';	
+				td.className = 'trace trace-hidden';
+				link.innerHTML = '&#x25b6;' + link.innerHTML.substring(1)
+			} else {
+				this.className = 'open';
+				td.className = 'trace';
+				link.innerHTML = '&#x25bc;' + link.innerHTML.substring(1)
+			}
+			(window.event || e).returnValue = false;
+		});
 	}
 
 }();

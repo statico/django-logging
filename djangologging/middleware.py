@@ -7,6 +7,14 @@ import sys
 import time
 import urlparse
 
+try:
+    import pygments
+    import pygments.lexers
+    import pygments.formatters
+    import pygments.styles
+except ImportError:
+    pygments = None
+
 import django
 from django.conf import settings
 from django.contrib import admin
@@ -14,12 +22,19 @@ from django.db import connection
 from django.shortcuts import render_to_response
 from django.template import loader
 from django.utils.cache import add_never_cache_headers
+from django.utils.html import escape
 try:
     from django.utils.encoding import smart_str
 except ImportError:
     # Older versions of Django don't have smart_str, but because they don't
     # require Unicode, we can simply fake it with an identify function.
     smart_str = lambda s: s
+try:
+    from django.utils.safestring import mark_safe
+except ImportError:
+    # Older versions of Django don't have mark_safe, so we have to escape
+    # manually when required.
+    mark_safe = None
 from django.utils.functional import curry
 
 from djangologging import SUPPRESS_OUTPUT_ATTR, getLevelNames
@@ -61,6 +76,11 @@ try:
     logging_show_metrics = settings.LOGGING_SHOW_METRICS
 except AttributeError:
     logging_show_metrics = True
+
+try:
+    logging_show_hints = settings.LOGGING_SHOW_HINTS
+except AttributeError:
+    logging_show_hints = True
 
 try:
     logging_log_sql = settings.LOGGING_LOG_SQL
@@ -112,6 +132,28 @@ if logging_log_sql:
             list.append(self, object)
 
 
+_makeRecord = logging.Logger.makeRecord
+def enhanced_make_record(self, *args, **kwargs):
+    """Enahnced makeRecord that captures the source code and local variables of
+    the code logging a message.""" 
+    rv = _makeRecord(self, *args, **kwargs)
+    frame = inspect.currentframe().f_back
+    while frame.f_back and (frame.f_code.co_filename.startswith(_django_path) or frame.f_code.co_filename.startswith(_logging_path) or frame.f_code.co_filename.startswith(_djangologging_path)):
+        if frame.f_code.co_filename.startswith(_admin_path):
+            break
+        frame = frame.f_back
+    
+    source_lines = inspect.getsourcelines(frame)
+    lineno = frame.f_lineno - source_lines[1]
+    show = 5
+    start, stop = max(0, lineno - show), lineno + show + 1
+    rv.__dict__['source_lines'] = python_to_html(''.join(source_lines[0][start:stop]), source_lines[1] + start, [lineno - start + 1])
+    rv.__dict__['local_variables'] = frame.f_locals.items()
+    return rv
+
+logging.Logger.makeRecord = enhanced_make_record
+
+
 _redirect_statuses = {
     301: 'Moved Permanently',
     302: 'Found',
@@ -120,11 +162,58 @@ _redirect_statuses = {
 
 _django_path = django.__file__.split('__init__')[0]
 _admin_path = admin.__file__.split('__init__')[0]
+_logging_path = logging.__file__.split('__init__')[0]
+_djangologging_path = __file__.split('__init__')[0]
 
 
 def format_time(record):
     time = datetime.datetime.fromtimestamp(record.created)
     return '%s,%03d' % (time.strftime('%H:%M:%S'), record.msecs)
+
+def sql_to_html(sql):
+    if pygments:
+        try:
+            lexer = {
+                'mysql': pygments.lexers.MySqlLexer,
+                'sqlite3': pygments.lexers.SqliteConsoleLexer,
+                }[settings.DATABASE_ENGINE]
+        except KeyError:
+            lexer = pygments.lexers.SqlLexer
+        html = pygments.highlight(sql, lexer(),
+            pygments.formatters.HtmlFormatter(cssclass='sql_highlight'))
+        
+        # Add some line breaks in appropriate places
+        html = html.replace('<span class="k">', '<br /><span class="k">')
+        html = re.sub(r'(<pre>\s*)<br />', r'\1', html)
+        html = re.sub(r'(<span class="k">[^<>]+</span>\s*)<br />(<span class="k">)', r'\1\2', html)
+        html = re.sub(r'<br />(<span class="k">(IN|LIKE)</span>)', r'\1', html)
+    
+    else:
+        html = '<div class="sql_highlight"><pre>%s</pre></div>' % escape(sql)
+    
+    if mark_safe:
+        html = mark_safe(html)
+    return html
+
+def python_to_html(python, linenostart=1, hl_lines=()):
+    if pygments:
+        html = pygments.highlight(python,
+            pygments.lexers.PythonLexer(),
+            pygments.formatters.HtmlFormatter(
+                linenos='inline', linenostart=linenostart, hl_lines=hl_lines
+                ))
+    
+    else:
+        lines = python.split('\n')
+        mx = len(str(linenostart + len(lines)))
+        python = '\n'.join(['%*d %s' % (mx, i+1, l) for i, l in enumerate(lines)])
+        html = '<pre>%s</pre>' % escape(python)
+    
+    if mark_safe:
+        html = mark_safe(html)
+    return html
+    
+        
 
 class LoggingMiddleware(object):
     """
@@ -160,11 +249,19 @@ class LoggingMiddleware(object):
             handler.clear_records()
             for record in records:
                 record.formatted_timestamp = format_time(record)
+                message = record.getMessage()
+                if record.levelname == 'SQL':
+                    record.formatted_message = sql_to_html(message)
+                else:
+                    record.formatted_message = escape(message)
             return records
 
     def _rewrite_html(self, request, response):
         if not hasattr(request, 'logging_start_time'):
             return
+        hints = {
+            'pygments': logging_log_sql and not pygments,
+            }
         context = {
             'records': self._get_and_clear_records(),
             'levels': getLevelNames(),
@@ -172,6 +269,8 @@ class LoggingMiddleware(object):
             'query_count': -1,
             'logging_log_sql': logging_log_sql,
             'logging_show_metrics': logging_show_metrics,
+            'logging_show_hints': logging_show_hints,
+            'hints': dict(filter(lambda (k, v): v, hints.items())),
             }
         if settings.DEBUG and logging_show_metrics:
             context['query_count'] = len(connection.queries)
