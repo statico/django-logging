@@ -38,7 +38,7 @@
 					<td class="trace trace-hidden" colspan="3">
 						<div class="source">
 							<h3>{{ record.pathname|escape|addslashes }} {% if record.funcName %}: {{ record.funcName|escape }} {% endif %}: {{ record.lineno|escape }}</h3>
-							{{ record.source_lines|escape }}
+							{{ record.source_lines }}
 							<h3>Local variables</h3>
 							<dl class="local_variables">
 								{% for var in record.local_variables %}
