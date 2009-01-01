@@ -92,6 +92,26 @@ try:
 except AttributeError:
     logging_rewrite_content_types = ('text/html',)
 
+_django_path = django.__file__.split('__init__')[0]
+_admin_path = admin.__file__.split('__init__')[0]
+_logging_path = logging.__file__.split('__init__')[0]
+_djangologging_path = __file__.split('middleware.py')[0]
+
+def get_meaningful_frame():
+    """
+    Try to find the meaningful frame, rather than just using one from
+    the innards of the Django or logging code.
+    """
+    frame = inspect.currentframe().f_back
+    while frame.f_back and \
+              (frame.f_code.co_filename.startswith(_django_path) or \
+               frame.f_code.co_filename.startswith(_logging_path) or \
+               frame.f_code.co_filename.startswith(_djangologging_path)):
+        if frame.f_code.co_filename.startswith(_admin_path):
+            break
+        frame = frame.f_back
+    return frame
+
 if logging_log_sql:
     # Define a new logging level called SQL
     logging.SQL = logging.DEBUG + 1
@@ -119,13 +139,7 @@ if logging_log_sql:
     
     class SqlLoggingList(list):
         def append(self, object):
-            # Try to find the meaningful frame, rather than just using one from
-            # the innards of the Django DB code.
-            frame = inspect.currentframe().f_back
-            while frame.f_back and frame.f_code.co_filename.startswith(_django_path):
-                if frame.f_code.co_filename.startswith(_admin_path):
-                    break
-                frame = frame.f_back
+            frame = get_meaningful_frame()
 
             sqltime = float(object['time']) * 1000
 
@@ -142,11 +156,7 @@ def enhanced_make_record(self, *args, **kwargs):
     """Enahnced makeRecord that captures the source code and local variables of
     the code logging a message.""" 
     rv = _makeRecord(self, *args, **kwargs)
-    frame = inspect.currentframe().f_back
-    while frame.f_back and (frame.f_code.co_filename.startswith(_django_path) or frame.f_code.co_filename.startswith(_logging_path) or frame.f_code.co_filename.startswith(_djangologging_path)):
-        if frame.f_code.co_filename.startswith(_admin_path):
-            break
-        frame = frame.f_back
+    frame = get_meaningful_frame()
     
     source_lines = inspect.getsourcelines(frame)
     lineno = frame.f_lineno - source_lines[1]
@@ -164,11 +174,6 @@ _redirect_statuses = {
     302: 'Found',
     303: 'See Other',
     307: 'Temporary Redirect'}
-
-_django_path = django.__file__.split('__init__')[0]
-_admin_path = admin.__file__.split('__init__')[0]
-_logging_path = logging.__file__.split('__init__')[0]
-_djangologging_path = __file__.split('__init__')[0]
 
 
 def format_time(record):
