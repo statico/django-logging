@@ -87,6 +87,11 @@ try:
 except AttributeError:
     logging_log_sql = False
 
+try:
+    logging_rewrite_content_types = settings.LOGGING_REWRITE_CONTENT_TYPES
+except AttributeError:
+    logging_rewrite_content_types = ('text/html',)
+
 if logging_log_sql:
     # Define a new logging level called SQL
     logging.SQL = logging.DEBUG + 1
@@ -238,9 +243,11 @@ class LoggingMiddleware(object):
                     len(handler.get_records()):
                 response = self._handle_redirect(request, response)
 
-            if response['Content-Type'].startswith('text/html'):
-                self._rewrite_html(request, response)
-                add_never_cache_headers(response)
+            for content_type in logging_rewrite_content_types:
+                if response['Content-Type'].startswith(content_type):
+                    self._rewrite_html(request, response)
+                    add_never_cache_headers(response)
+                    break
 
         return response
 
