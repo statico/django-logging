@@ -185,7 +185,6 @@ def sql_to_html(sql):
         try:
             lexer = {
                 'mysql': pygments.lexers.MySqlLexer,
-                'sqlite3': pygments.lexers.SqliteConsoleLexer,
                 }[settings.DATABASE_ENGINE]
         except KeyError:
             lexer = pygments.lexers.SqlLexer
@@ -197,6 +196,9 @@ def sql_to_html(sql):
         html = re.sub(r'(<pre>\s*)<br />', r'\1', html)
         html = re.sub(r'(<span class="k">[^<>]+</span>\s*)<br />(<span class="k">)', r'\1\2', html)
         html = re.sub(r'<br />(<span class="k">(IN|LIKE)</span>)', r'\1', html)
+        
+        # Add a space after commas to help with wrapping
+        html = re.sub(r'<span class="p">,</span>', '<span class="p">, </span>', html)
     
     else:
         html = '<div class="sql_highlight"><pre>%s</pre></div>' % escape(sql)
