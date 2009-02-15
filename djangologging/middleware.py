@@ -325,3 +325,15 @@ class LoggingMiddleware(object):
         response = render_to_response('redirect.html', data)
         add_never_cache_headers(response)
         return response
+
+
+class SuppressLoggingOnAjaxRequestsMiddleware(object):
+    """Suppress and log messages from being outputted to the browser on
+    requests that are made from AJAX. This relies on the
+    X-Requested-With header being set, which all the most popular libraries
+    seem to do."""
+    def process_response(self, request, response):
+        if request.META.get('HTTP_X_REQUESTED_WITH', '').lower() == 'xmlhttprequest':
+            setattr(response, SUPPRESS_OUTPUT_ATTR, True)
+
+        return response
