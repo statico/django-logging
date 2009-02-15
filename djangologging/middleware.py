@@ -92,10 +92,10 @@ try:
 except AttributeError:
     logging_rewrite_content_types = ('text/html',)
 
-_django_path = django.__file__.split('__init__')[0]
-_admin_path = admin.__file__.split('__init__')[0]
-_logging_path = logging.__file__.split('__init__')[0]
-_djangologging_path = __file__.split('middleware.py')[0]
+_django_path = os.path.realpath(os.path.dirname(django.__file__))
+_admin_path = os.path.realpath(os.path.dirname(admin.__file__))
+_logging_path = os.path.realpath(os.path.dirname(logging.__file__))
+_djangologging_path = os.path.realpath(os.path.dirname(__file__))
 
 def get_meaningful_frame():
     """
@@ -103,11 +103,12 @@ def get_meaningful_frame():
     the innards of the Django or logging code.
     """
     frame = inspect.currentframe().f_back
-    while frame.f_back and \
-              (frame.f_code.co_filename.startswith(_django_path) or \
-               frame.f_code.co_filename.startswith(_logging_path) or \
-               frame.f_code.co_filename.startswith(_djangologging_path)):
-        if frame.f_code.co_filename.startswith(_admin_path):
+    while frame.f_back:
+        filename = os.path.realpath(frame.f_code.co_filename)
+        if not (filename.startswith(_django_path) or \
+               filename.startswith(_logging_path) or \
+               filename.startswith(_djangologging_path)) or \
+               filename.startswith(_admin_path):
             break
         frame = frame.f_back
     return frame
