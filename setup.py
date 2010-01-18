@@ -2,11 +2,10 @@
 
 from distutils.core import setup
 
-setup(name='Distutils',
-      version='1.0',
-      description='Python Distribution Utilities',
-      author='Greg Ward',
-      author_email='gward@python.net',
-      url='http://www.python.org/sigs/distutils-sig/',
-      packages=['distutils', 'distutils.command'],
+setup(name='django-logging',
+      version='0.1',
+      description="A Django wrapper to Python's logging module",
+      author='Fraser Nevett',
+      url='http://code.google.com/p/django-logging/',
+      packages=['djangologging'],
      )
